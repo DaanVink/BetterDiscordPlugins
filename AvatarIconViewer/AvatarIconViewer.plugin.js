@@ -161,7 +161,7 @@ var AvatarIconViewer = (_ => {
 
             #aiv-modal-wrapper .modal-body {
                 background-color: #36393f;
-                height: 440px;
+                height: auto;
                 width: auto;
                 flex-direction: column;
                 overflow: hidden;
