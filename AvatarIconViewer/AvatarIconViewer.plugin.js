@@ -4,6 +4,7 @@
  * @source https://raw.githubusercontent.com/rauenzi/BetterDiscordAddons/master/Plugins/aivViewer/aivViewer.plugin.js
  */
 
+ function print(arg) { console.log(arg); }
 
 var AvatarIconViewer = (_ => {
     const config = {
@@ -67,15 +68,12 @@ var AvatarIconViewer = (_ => {
             });
             
         }
-        start() {
-        }
 
-        
-
-        stop() {}
     } : (([Plugin, Api]) => {
         const plugin = (Plugin, Api) => {
-    const {PluginUtilities, Toasts, DiscordClasses, DiscordSelectors, Utilities, DOMTools} = Api;
+    const {Patcher, PluginUtilities, Toasts, DiscordModules, DiscordClasses, DiscordSelectors, Utilities, DOMTools} = Api;
+    const MenuActions = DiscordModules.ContextMenuActions;
+    const MenuItem = ZLibrary.DiscordModules.ContextMenuItem;
 
     const path = require("path");
     const process = require("process");
@@ -83,157 +81,156 @@ var AvatarIconViewer = (_ => {
     const fs = require("fs");
     const { clipboard, nativeImage } = require("electron");
 
-    const escapeHTML = DOMTools.escapeHTML ? DOMTools.escapeHTML : function(html) {
-        const textNode = document.createTextNode("");
-        const spanElement = document.createElement("span");
-        spanElement.append(textNode);
-        textNode.nodeValue = html;
-        return spanElement.innerHTML;
-    };
+    const escapeHTML = function (str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') ;
+    }
 
     return class AvatarIconViewer extends Plugin {
         constructor() {
             super();
 
-            this.css = `.member-perms-header {
-    display: flex;
-    justify-content: space-between;
-}
+            this.contextMenuPatches = [];
+
+            this.css = `
+            .member-perms-header {
+                display: flex;
+                justify-content: space-between;
+            }
 
 
-/* Modal */
+            /* Modal */
 
-@keyframes aiv-backdrop {
-    to { opacity: 0.85; }
-}
+            @keyframes aiv-backdrop {
+                to { opacity: 0.85; }
+            }
 
-@keyframes aiv-modal-wrapper {
-    to { transform: scale(1); opacity: 1; }
-}
+            @keyframes aiv-modal-wrapper {
+                to { transform: scale(1); opacity: 1; }
+            }
 
-@keyframes aiv-backdrop-closing {
-    to { opacity: 0; }
-}
+            @keyframes aiv-backdrop-closing {
+                to { opacity: 0; }
+            }
 
-@keyframes aiv-modal-wrapper-closing {
-    to { transform: scale(.7); opacity: 0; }
-}
+            @keyframes aiv-modal-wrapper-closing {
+                to { transform: scale(.7); opacity: 0; }
+            }
 
-#aiv-modal-wrapper .callout-backdrop {
-    animation: aiv-backdrop 250ms ease;
-    animation-fill-mode: forwards;
-    opacity: 0;
-    background-color: rgb(0, 0, 0);
-    transform: translateZ(0px);
-}
+            #aiv-modal-wrapper .callout-backdrop {
+                animation: aiv-backdrop 250ms ease;
+                animation-fill-mode: forwards;
+                opacity: 0;
+                background-color: rgb(0, 0, 0);
+                transform: translateZ(0px);
+            }
 
-#aiv-modal-wrapper.closing .callout-backdrop {
-    animation: aiv-backdrop-closing 200ms linear;
-    animation-fill-mode: forwards;
-    animation-delay: 50ms;
-    opacity: 0.85;
-}
+            #aiv-modal-wrapper.closing .callout-backdrop {
+                animation: aiv-backdrop-closing 200ms linear;
+                animation-fill-mode: forwards;
+                animation-delay: 50ms;
+                opacity: 0.85;
+            }
 
-#aiv-modal-wrapper.closing .modal-wrapper {
-    animation: aiv-modal-wrapper-closing 250ms cubic-bezier(0.19, 1, 0.22, 1);
-    animation-fill-mode: forwards;
-    opacity: 1;
-    transform: scale(1);
-}
+            #aiv-modal-wrapper.closing .modal-wrapper {
+                animation: aiv-modal-wrapper-closing 250ms cubic-bezier(0.19, 1, 0.22, 1);
+                animation-fill-mode: forwards;
+                opacity: 1;
+                transform: scale(1);
+            }
 
-#aiv-modal-wrapper .modal-wrapper {
-    animation: aiv-modal-wrapper 250ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    animation-fill-mode: forwards;
-    transform: scale(0.7);
-    transform-origin: 50% 50%;
-    display: flex;
-    align-items: center;
-    box-sizing: border-box;
-    contain: content;
-    justify-content: center;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    opacity: 0;
-    pointer-events: none;
-    position: absolute;
-    user-select: none;
-    z-index: 1000;
-}
+            #aiv-modal-wrapper .modal-wrapper {
+                animation: aiv-modal-wrapper 250ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                animation-fill-mode: forwards;
+                transform: scale(0.7);
+                transform-origin: 50% 50%;
+                display: flex;
+                align-items: center;
+                box-sizing: border-box;
+                contain: content;
+                justify-content: center;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                right: 0;
+                opacity: 0;
+                pointer-events: none;
+                position: absolute;
+                user-select: none;
+                z-index: 1000;
+            }
 
-#aiv-modal-wrapper .modal-body {
-    background-color: #36393f;
-    height: 440px;
-    width: auto;
-    flex-direction: column;
-    overflow: hidden;
-    display: flex;
-    flex: 1;
-    padding: 25px 25px 0px 25px;
-    contain: layout;
-    position: relative;
+            #aiv-modal-wrapper .modal-body {
+                background-color: #36393f;
+                height: 440px;
+                width: auto;
+                flex-direction: column;
+                overflow: hidden;
+                display: flex;
+                flex: 1;
+                padding: 25px 25px 0px 25px;
+                contain: layout;
+                position: relative;
 
-    border-radius: 0px 0px 5px 5px;
-}
+                border-radius: 0px 0px 5px 5px;
+            }
 
-#aiv-modal-wrapper .header {
-    box-shadow: 0 2px 3px 0 rgba(0,0,0,.2);
-    padding: 12px 20px;
-    z-index: 1;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 19px;
-    border-radius: 5px 5px 0px 0px;
-}
+            #aiv-modal-wrapper .header {
+                box-shadow: 0 2px 3px 0 rgba(0,0,0,.2);
+                padding: 12px 20px;
+                z-index: 1;
+                color: #fff;
+                font-size: 16px;
+                font-weight: 700;
+                line-height: 19px;
+                border-radius: 5px 5px 0px 0px;
+            }
 
-.aiv-header {
-    background-color: #202225;
-}
+            .aiv-header {
+                background-color: #202225;
+            }
 
-.aiv-imgContainer {
-}
+            .aiv-imgContainer {
+            }
 
-.aiv-buttonwrapper {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    padding-top: 15px;
-    padding-bottom: 15px;
-    width: 100%;
-}
+            .aiv-buttonwrapper {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                padding-top: 15px;
+                padding-bottom: 15px;
+                width: 100%;
+            }
 
-.aiv-button {
-    min-width: 125px;
-    min-height: 38px;
-    width: 25%;
+            .aiv-button {
+                min-width: 125px;
+                min-height: 38px;
+                width: 25%;
 
-    margin-left: 5px;
-    margin-right: 5px;
+                margin-left: 5px;
+                margin-right: 5px;
 
-    display: flex;
+                display: flex;
 
-    color: #fff;
-    background-color: #7289da;
+                color: #fff;
+                background-color: #7289da;
 
-    border-radius: 3px;
-    border: none;
+                border-radius: 3px;
+                border: none;
 
-    line-height: 16px;
-    font-size: 16px;
-    font-weight: 500;
-    align-items: center;
-    justify-content: center;
+                line-height: 16px;
+                font-size: 16px;
+                font-weight: 500;
+                align-items: center;
+                justify-content: center;
 
 
-    transition: background-color .17s ease,color .17s ease;
-}
+                transition: background-color .17s ease,color .17s ease;
+            }
 
-.aiv-button:hover {
-    background-color: #677bc4;
-}
-`;
+            .aiv-button:hover {
+                background-color: #677bc4;
+            }
+            `;
 
             this.listHTML = `<div class="member-perms-header \${bodyTitle}">`;
 
@@ -263,66 +260,69 @@ var AvatarIconViewer = (_ => {
             this.modalHTML = Utilities.formatTString(this.modalHTML, DiscordClasses.Modals);
 
             this.promises = {state: {cancelled: false}, cancel() {this.state.cancelled = true;}};
-
-            if (!window.BDFDB) window.BDFDB = {myPlugins:{}};
-			if (window.BDFDB && window.BDFDB.myPlugins && typeof window.BDFDB.myPlugins == "object") window.BDFDB.myPlugins[this.getName()] = this;
-			let libraryScript = document.querySelector("head script#BDFDBLibraryScript");
-			if (!libraryScript || (performance.now() - libraryScript.getAttribute("date")) > 600000) {
-				if (libraryScript) libraryScript.remove();
-				libraryScript = document.createElement("script");
-				libraryScript.setAttribute("id", "BDFDBLibraryScript");
-				libraryScript.setAttribute("type", "text/javascript");
-				libraryScript.setAttribute("src", "https://mwittrien.github.io/BetterDiscordAddons/Plugins/BDFDB.min.js");
-				libraryScript.setAttribute("date", performance.now());
-				libraryScript.addEventListener("load", _ => {this.initialize();});
-				document.head.appendChild(libraryScript);
-            }
-            
-            else if (window.BDFDB && typeof BDFDB === "object" && BDFDB.loaded) this.initialize();
-			this.startTimeout = setTimeout(_ => {
-				try {return this.initialize();}
-				catch (err) {console.error(`%c[${this.getName()}]%c`, "color: #3a71c1; font-weight: 700;", "", "Fatal Error: Could not initiate plugin! " + err);}
-			}, 30000);
-
-
+            if (this.settings.contextMenus) this.bindContextMenus(this.promises.state);
         }
 
-        initialize() {     
-            if (window.BDFDB && typeof BDFDB === "object" && BDFDB.loaded) {
-                BDFDB.PluginUtils.init(this);
-			}
-            else console.error(`%c[${this.getName()}]%c`, "color: #3a71c1; font-weight: 700;", "", "Fatal Error: Could not load BD functions!");
-
+        async bindContextMenus(promiseState) {
+            this.patchGuildContextMenu(promiseState);
+            this.patchUserContextMenu(promiseState);
         }
 
-        async onStop() {
+        unbindContextMenus() {
+            for (const cancel of this.contextMenuPatches) cancel();
+        }
+
+        async patchGuildContextMenu(promiseState) {
+            const GuildContextMenu = await PluginUtilities.getContextMenu("GUILD_ICON_");
+            if (promiseState.cancelled) return;
+
+            this.contextMenuPatches.push(Patcher.after(GuildContextMenu, "default", (_, [props], retVal) => {
+                const original = retVal.props.children[0].props.children;
+                const newItem = new MenuItem({label: this.strings.guildContextLabel, action: () => {
+                    MenuActions.closeContextMenu();
+                    this.showModal(this.setupGuildModal(props.guild));
+                }});
+                if (Array.isArray(original)) original.unshift(newItem);
+                else retVal.props.children[0].props.children = [original, newItem];
+            }));
+            PluginUtilities.forceUpdateContextMenus();
+        }
+
+        async patchUserContextMenu(promiseState) {
+            const UserContextMenu = await PluginUtilities.getContextMenu("USER_CHANNEL_");
+            if (promiseState.cancelled) return;
+
+            this.contextMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
+                var original = retVal.props.children.props.children.props.children[0].props.children;
+                const newItem = new MenuItem({label: this.strings.userContextLabel, action: () => {
+                    MenuActions.closeContextMenu();
+                    this.showModal(this.setupUserModal(props.user));
+                }});
+                
+                if (Array.isArray(original)) original.unshift(newItem);
+                else retVal.props.children.props.children.props.children[0].props.children = [original, newItem];
+            }));
+            PluginUtilities.forceUpdateContextMenus();
+        }
+
+        onStop() {
             PluginUtilities.removeStyle(this.getName());
             this.promises.cancel();
+            this.unbindContextMenus();
         }
 
-
-        showModal(modal) {
-            const popout = document.querySelector(DiscordSelectors.UserPopout.userPopout);
-            if (popout) popout.style.display = "none";
-            const app = document.querySelector(".app-19_DXt");
-            if (app) app.append(modal);
-            else document.querySelector("#app-mount").append(modal);
+        setupUserModal(user) {
+            const url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=2048";
+            return this.createModal(user.username, url, true);
         }
 
-        createModalUser(name, id) {
-            let bdUser = BDFDB.LibraryModules.UserStore.getUser(id);
-            var url = BDFDB.LibraryModules.IconUtils.getUserAvatarURL(bdUser);
-            url = url.replace("?size=128", "?size=2048");
-            return this.createModal(name, url, true);
-        }
-
-        createModalGuild(name, id, icon) {
-            if (icon != null) { 
-                const url = "https://cdn.discordapp.com/icons/" + id + "/" + icon + ".webp?size=4096"
-                return this.createModal(name, url, false);
+        setupGuildModal(guild) {
+            if (guild.icon != null) { 
+                const url = "https://cdn.discordapp.com/icons/" + guild.id + "/" + guild.icon + ".webp?size=4096";
+                return this.createModal(guild.name, url, false);
             }
             else {
-                Toasts.error("Icon is null!")
+                Toasts.error("Icon is null!");
             }
         }
 
@@ -340,14 +340,14 @@ var AvatarIconViewer = (_ => {
 
             modal.find(".aiv-copyLink").onclick = function copyLink() { 
                 clipboard.writeText(url)
-                Toasts.success(config.strings.en.copiedLink);
+                Toasts.success("Copied link to clipboard!");
                 modal.addClass("closing");
                 setTimeout(() => { modal.remove(); }, 300);
             };
 
             modal.find(".aiv-copyImage").onclick = function copyImage() { 
                 request({url: url.replace(".webp", ".png"), encoding: null}, (error, response, buffer) => {
-                    if (error) return Toasts.error(config.strings.en.copyFailed);
+                    if (error) return Toasts.error("Failed to copy image: " + error);
                     
                     if (process.platform === "win32" || process.platform === "darwin") {
                         clipboard.write({image: nativeImage.createFromBuffer(buffer)});
@@ -358,7 +358,7 @@ var AvatarIconViewer = (_ => {
                             clipboard.write({image: file});
                             fs.unlinkSync(file);
                     }
-                    Toasts.success(config.strings.en.copiedImage);
+                    Toasts.success("Copied image to clipboard!");
                     modal.addClass("closing");
                     setTimeout(() => { modal.remove(); }, 300); 
                 });
@@ -374,6 +374,14 @@ var AvatarIconViewer = (_ => {
             return modal;
         }
 
+        showModal(modal) {
+            const popout = document.querySelector(DiscordSelectors.UserPopout.userPopout);
+            if (popout) popout.style.display = "none";
+            const app = document.querySelector(".app-19_DXt");
+            if (app) app.append(modal);
+            else document.querySelector("#app-mount").append(modal);
+        }
+
         getSettingsPanel() {
             const panel = this.buildSettingsPanel();
             panel.addListener((id, checked) => {
@@ -382,41 +390,6 @@ var AvatarIconViewer = (_ => {
             });
             return panel.getElement();
         }
-
-        onUserContextMenu (e) { 
-            if (e.instance.props.user) {
-				let [children, index] = BDFDB.ReactUtils.findChildren(e.returnvalue, {name:["FluxContainer(MessageDeveloperModeGroup)", "DeveloperModeGroup"]});
-				children.splice(index > -1 ? index : children.length, 0, BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.ContextMenuItems.Group, {
-					children: [
-						BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.ContextMenuItems.Item, {
-                            label: config.strings.en.userContextLabel,
-                            action: _ => {
-                                BDFDB.ContextMenuUtils.close(e.instance);
-                                this.showModal(this.createModalUser(e.instance.props.user.username, e.instance.props.user.id));
-                            }
-						})
-					]
-				}));
-            }
-        }
-
-        onGuildContextMenu (e) {
-            if (e.instance.props.guild.icon) {
-				let [children, index] = BDFDB.ReactUtils.findChildren(e.returnvalue, {name:["FluxContainer(MessageDeveloperModeGroup)", "DeveloperModeGroup"]});
-				children.splice(index > -1 ? index : children.length, 0, BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.ContextMenuItems.Group, {
-					children: [
-						BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.ContextMenuItems.Item, {
-                            label: config.strings.en.guildContextLabel,
-                            action: _ => {
-                                BDFDB.ContextMenuUtils.close(e.instance);
-                                this.showModal(this.createModalGuild(e.instance.props.guild.name, e.instance.props.guild.id, e.instance.props.guild.icon));
-                            }
-						})
-					]
-				}));
-            }
-        }
-
     };
 };
         return plugin(Plugin, Api);
