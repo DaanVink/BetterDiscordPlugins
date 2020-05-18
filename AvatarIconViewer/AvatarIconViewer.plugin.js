@@ -228,6 +228,10 @@ var AvatarIconViewer = (_ => {
             }
 
             .aiv-button:hover {
+                background-color: #7289da;
+            }
+
+            .aiv-button:active {
                 background-color: #677bc4;
             }
             `;
