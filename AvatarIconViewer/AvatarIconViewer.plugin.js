@@ -249,7 +249,10 @@ module.exports = (() => {
 
         setupGuildModal(guild) {
             if (guild.icon != null) { 
-                const url = "https://cdn.discordapp.com/icons/" + guild.id + "/" + guild.icon + ".webp?size=4096";
+                var url = "https://cdn.discordapp.com/icons/" + guild.id + "/" + guild.icon + ".webp?size=4096";
+                if (url.includes("/a_")) {
+                    url = url.replace(".webp", ".gif");
+                }
                 this.showModal(this.createModal(guild.name, url, false));
             }
             else {
@@ -274,7 +277,10 @@ module.exports = (() => {
 
         
         setupUserModal(user) {
-            const url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=1024";
+            var url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=1024";
+            if (url.includes("/a_")) {
+                url = url.replace(".webp", ".gif");
+            }
             this.showModal(this.createModal(user.username, url, true));
         }
       
