@@ -1,12 +1,11 @@
 /**
  * @name AvatarIconViewer
- * @website https://github.com/rauenzi/BetterDiscordAddons/tree/master/Plugins/aivViewer
- * @source https://raw.githubusercontent.com/rauenzi/BetterDiscordAddons/master/Plugins/aivViewer/aivViewer.plugin.js
+ * @website https://github.com/DaanVink/BetterDiscordPlugins
+ * @source https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js
  */
 
- function print(arg) { console.log(arg); }
 
-var AvatarIconViewer = (_ => {
+module.exports = (() => {
     const config = {
         info:{
             name:"AvatarIconViewer",
@@ -14,17 +13,10 @@ var AvatarIconViewer = (_ => {
                 name:"DavinMiler",
                 discord_id:"275215231918276608"
             }],
-        version:"1.0.0",
+        version:"1.0.1",
         description:"Allows you to view and copy a user's profile picture.",
         github:"https://github.com/DaanVink/BetterDiscordPlugins/blob/master/AvatarIconViewer/AvatarIconViewer.plugin.js",
         github_raw:"https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js"},
-        defaultConfig:[
-            {   type:"switch",
-                id:"contextMenus",
-                name:"Context Menus",
-                value:true
-            }
-        ],
         strings:{
             en:{
                 userContextLabel:"View Profile Picture",
@@ -39,17 +31,12 @@ var AvatarIconViewer = (_ => {
                 },
                 copiedImage: "Copied image to clipboard!",
                 copiedLink: "Copied link to clipboard!",
-                copyFailed: "Failed to copy to clipboard!",
-                settings:{
-                    contextMenus:{
-                        name:"Context Menu Button",
-                        note:"Adds a button to view the profile picture to select context menus."}
-                    }
+                copyFailed: "Failed to copy to clipboard!"
                 }
             },
             main:"index.js"};
-    
-        return !global.ZeresPluginLibrary ? class {
+
+    return !global.ZeresPluginLibrary ? class {
         constructor() {this._config = config;}
         getName() {return config.info.name;}
         getAuthor() {return config.info.authors.map(a => a.name).join(", ");}
@@ -66,14 +53,12 @@ var AvatarIconViewer = (_ => {
                     });
                 }
             });
-            
         }
-
+        start() {}
+        stop() {}
     } : (([Plugin, Api]) => {
         const plugin = (Plugin, Api) => {
-    const {Patcher, PluginUtilities, Toasts, DiscordModules, DiscordClasses, DiscordSelectors, Utilities, DOMTools} = Api;
-    const MenuActions = DiscordModules.ContextMenuActions;
-    const MenuItem = ZLibrary.DiscordModules.ContextMenuItem;
+    const {Patcher, WebpackModules, PluginUtilities, Toasts, DiscordClasses, DiscordSelectors, Utilities, DOMTools, DCM} = Api;
 
     const path = require("path");
     const process = require("process");
@@ -88,33 +73,16 @@ var AvatarIconViewer = (_ => {
     return class AvatarIconViewer extends Plugin {
         constructor() {
             super();
-
-            this.contextMenuPatches = [];
-
             this.css = `
             .member-perms-header {
                 display: flex;
                 justify-content: space-between;
             }
 
-
-            /* Modal */
-
-            @keyframes aiv-backdrop {
-                to { opacity: 0.85; }
-            }
-
-            @keyframes aiv-modal-wrapper {
-                to { transform: scale(1); opacity: 1; }
-            }
-
-            @keyframes aiv-backdrop-closing {
-                to { opacity: 0; }
-            }
-
-            @keyframes aiv-modal-wrapper-closing {
-                to { transform: scale(.7); opacity: 0; }
-            }
+            @keyframes aiv-backdrop { to { opacity: 0.85; }}
+            @keyframes aiv-modal-wrapper { to { transform: scale(1); opacity: 1; } }
+            @keyframes aiv-backdrop-closing { to { opacity: 0; }}
+            @keyframes aiv-modal-wrapper-closing { to { transform: scale(.7); opacity: 0; } }
 
             #aiv-modal-wrapper .callout-backdrop {
                 animation: aiv-backdrop 250ms ease;
@@ -170,7 +138,6 @@ var AvatarIconViewer = (_ => {
                 padding: 25px 25px 0px 25px;
                 contain: layout;
                 position: relative;
-
                 border-radius: 0px 0px 5px 5px;
             }
 
@@ -185,12 +152,7 @@ var AvatarIconViewer = (_ => {
                 border-radius: 5px 5px 0px 0px;
             }
 
-            .aiv-header {
-                background-color: #202225;
-            }
-
-            .aiv-imgContainer {
-            }
+            .aiv-header { background-color: #202225; }
 
             .aiv-buttonwrapper {
                 display: flex;
@@ -205,56 +167,46 @@ var AvatarIconViewer = (_ => {
                 min-width: 125px;
                 min-height: 38px;
                 width: 25%;
-
                 margin-left: 5px;
                 margin-right: 5px;
-
                 display: flex;
-
                 color: #fff;
                 background-color: #7289da;
-
                 border-radius: 3px;
                 border: none;
-
                 line-height: 16px;
                 font-size: 16px;
                 font-weight: 500;
                 align-items: center;
                 justify-content: center;
-
-
                 transition: background-color .17s ease,color .17s ease;
             }
 
-            .aiv-button:hover {
-                background-color: #7289da;
-            }
-
-            .aiv-button:active {
-                background-color: #677bc4;
-            }
+            .aiv-button:hover { background-color: #677bc4; }
+            .aiv-button:active { background-color: #4e5d94; }
             `;
 
             this.listHTML = `<div class="member-perms-header \${bodyTitle}">`;
 
             this.modalHTML = `<div id="aiv-modal-wrapper">
-        <div class="callout-backdrop \${backdrop}"></div>
-        <div class="modal-wrapper \${modal}">
-            <div id="aiv-modal" class="\${inner}">
-                <div class="header aiv-header"><div class="title">\${header}</div></div>
-                <div class="modal-body"">
-                    <div class="aiv-imgContainer"></div>
-                    <div class="aiv-buttonwrapper">
-                        <div class="aiv-button aiv-copyLink">Copy image link</div>
-                        <div class="aiv-button aiv-copyImage">Copy image</div>
-                        <div class="aiv-button aiv-openBrowser">Open in browser</div>
+            <div class="callout-backdrop \${backdrop}"></div>
+            <div class="modal-wrapper \${modal}">
+                <div id="aiv-modal" class="\${inner}">
+                    <div class="header aiv-header"><div class="title">\${header}</div></div>
+                    <div class="modal-body"">
+                        <div class="aiv-imgContainer"></div>
+                        <div class="aiv-buttonwrapper">
+                            <div class="aiv-button aiv-copyLink">Copy image link</div>
+                            <div class="aiv-button aiv-copyImage">Copy image</div>
+                            <div class="aiv-button aiv-openBrowser">Open in browser</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>`;
-    
+        </div>`;
+        
+            this.cancelUserPopout = () => {};
+            this.contextMenuPatches = [];
         }
 
         onStart() {
@@ -262,62 +214,37 @@ var AvatarIconViewer = (_ => {
 
             this.modalHTML = Utilities.formatTString(this.modalHTML, DiscordClasses.Backdrop);
             this.modalHTML = Utilities.formatTString(this.modalHTML, DiscordClasses.Modals);
-
-            this.promises = {state: {cancelled: false}, cancel() {this.state.cancelled = true;}};
-            if (this.settings.contextMenus) this.bindContextMenus(this.promises.state);
+            this.bindContextMenus();
         }
 
-        async bindContextMenus(promiseState) {
-            this.patchGuildContextMenu(promiseState);
-            this.patchUserContextMenu(promiseState);
+        onStop() {
+            PluginUtilities.removeStyle(this.getName());
+            this.unbindContextMenus();
+        }
+
+        unbindPopouts() {
+            this.cancelUserPopout();
+        }
+
+        async bindContextMenus() {
+            this.patchGuildContextMenu();
+            this.patchUserContextMenu();
         }
 
         unbindContextMenus() {
             for (const cancel of this.contextMenuPatches) cancel();
         }
 
-        async patchGuildContextMenu(promiseState) {
-            const GuildContextMenu = await PluginUtilities.getContextMenu("GUILD_ICON_");
-            if (promiseState.cancelled) return;
-
+        patchGuildContextMenu() {
+            const GuildContextMenu = WebpackModules.getModule(m => m.default && m.default.displayName == "GuildContextMenu");
             this.contextMenuPatches.push(Patcher.after(GuildContextMenu, "default", (_, [props], retVal) => {
                 const original = retVal.props.children[0].props.children;
-                const newItem = new MenuItem({label: this.strings.guildContextLabel, action: () => {
-                    MenuActions.closeContextMenu();
+                const newOne = DCM.buildMenuItem({label: "View Icon", action: () => {
                     this.showModal(this.setupGuildModal(props.guild));
                 }});
-                if (Array.isArray(original)) original.unshift(newItem);
-                else retVal.props.children[0].props.children = [original, newItem];
+                if (Array.isArray(original)) original.unshift(newOne);
+                else retVal.props.children[0].props.children = [original, newOne];
             }));
-            PluginUtilities.forceUpdateContextMenus();
-        }
-
-        async patchUserContextMenu(promiseState) {
-            const UserContextMenu = await PluginUtilities.getContextMenu("USER_CHANNEL_");
-            if (promiseState.cancelled) return;
-
-            this.contextMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
-                var original = retVal.props.children.props.children.props.children[0].props.children;
-                const newItem = new MenuItem({label: this.strings.userContextLabel, action: () => {
-                    MenuActions.closeContextMenu();
-                    this.showModal(this.setupUserModal(props.user));
-                }});
-                
-                if (Array.isArray(original)) original.unshift(newItem);
-                else retVal.props.children.props.children.props.children[0].props.children = [original, newItem];
-            }));
-            PluginUtilities.forceUpdateContextMenus();
-        }
-
-        onStop() {
-            PluginUtilities.removeStyle(this.getName());
-            this.promises.cancel();
-            this.unbindContextMenus();
-        }
-
-        setupUserModal(user) {
-            const url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=2048";
-            return this.createModal(user.username, url, true);
         }
 
         setupGuildModal(guild) {
@@ -326,30 +253,52 @@ var AvatarIconViewer = (_ => {
                 return this.createModal(guild.name, url, false);
             }
             else {
-                Toasts.error("Icon is null!");
+                Toasts.error("Server has no icon!");
             }
         }
 
+
+        patchUserContextMenu() {
+            const UserContextMenu = WebpackModules.getModule(m => m.default && m.default.displayName == "GuildChannelUserContextMenu");
+
+            this.contextMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
+                const original = retVal.props.children.props.children[0].props.children[0];
+                const newOne = DCM.buildMenuItem({label: "View Avatar", action: () => {
+                    this.showModal(this.setupUserModal(props.user));
+                }});
+                if (Array.isArray(original)) original.unshift(newOne);
+                else retVal.props.children.props.children[0].props.children[0] = [original, newOne];
+            }));
+        }
+
+        
+        setupUserModal(user) {
+            const url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=2048";
+            return this.createModal(user.username, url, true);
+        }
+      
         createModal(name, url, isUser) {
             const modal = DOMTools.createElement(Utilities.formatTString(Utilities.formatTString(this.modalHTML, isUser ? this.strings.userHeader : this.strings.guildHeader), {name: escapeHTML(name)}));
-            modal.find(".callout-backdrop").on("click", () => {
-                modal.addClass("closing");
+            modal.querySelector(".callout-backdrop").addEventListener("click", () => {
+                modal.classList.add("closing");
                 setTimeout(() => { modal.remove(); }, 300);
             });
 
-            const testimage = document.createElement("IMG");
-            testimage.setAttribute("src", url);
-            testimage.classList += "aiv-image";
-            modal.find(".aiv-imgContainer").appendChild(testimage);
+            const image = document.createElement("IMG");
+            image.setAttribute("src", url);
+            image.classList += "aiv-image";
+            modal.getElementsByClassName("aiv-imgContainer")[0].appendChild(image);
 
-            modal.find(".aiv-copyLink").onclick = function copyLink() { 
-                clipboard.writeText(url)
+            modal.getElementsByClassName("aiv-copyLink")[0].onclick = function() { 
+                const { clipboard } = require("electron");
+                clipboard.writeText(url);
                 Toasts.success("Copied link to clipboard!");
-                modal.addClass("closing");
+                modal.classList += "closing";
                 setTimeout(() => { modal.remove(); }, 300);
+                
             };
 
-            modal.find(".aiv-copyImage").onclick = function copyImage() { 
+            modal.getElementsByClassName("aiv-copyImage")[0].onclick = function() { 
                 request({url: url.replace(".webp", ".png"), encoding: null}, (error, response, buffer) => {
                     if (error) return Toasts.error("Failed to copy image: " + error);
                     
@@ -363,21 +312,22 @@ var AvatarIconViewer = (_ => {
                             fs.unlinkSync(file);
                     }
                     Toasts.success("Copied image to clipboard!");
-                    modal.addClass("closing");
+                    modal.classList += "closing";
                     setTimeout(() => { modal.remove(); }, 300); 
                 });
             };
 
             
-            modal.find(".aiv-openBrowser").onclick = function openInBrowser() { 
+            modal.getElementsByClassName("aiv-openBrowser")[0].onclick = function() { 
                 require('electron').shell.openExternal(url);
-                modal.addClass("closing");
+                modal.classList += "closing";
                 setTimeout(() => { modal.remove(); }, 300);
             };
 
             return modal;
         }
 
+    
         showModal(modal) {
             const popout = document.querySelector(DiscordSelectors.UserPopout.userPopout);
             if (popout) popout.style.display = "none";
@@ -386,14 +336,6 @@ var AvatarIconViewer = (_ => {
             else document.querySelector("#app-mount").append(modal);
         }
 
-        getSettingsPanel() {
-            const panel = this.buildSettingsPanel();
-            panel.addListener((id, checked) => {
-                if (id == "contextMenus") {
-                }
-            });
-            return panel.getElement();
-        }
     };
 };
         return plugin(Plugin, Api);
