@@ -239,18 +239,18 @@ module.exports = (() => {
             const GuildContextMenu = WebpackModules.getModule(m => m.default && m.default.displayName == "GuildContextMenu");
             this.contextMenuPatches.push(Patcher.after(GuildContextMenu, "default", (_, [props], retVal) => {
                 const original = retVal.props.children[0].props.children;
-                const newOne = DCM.buildMenuItem({label: "View Icon", action: () => {
-                    this.showModal(this.setupGuildModal(props.guild));
+                const aivButton = DCM.buildMenuItem({label: "View Icon", action: () => {
+                    this.setupGuildModal(props.guild);
                 }});
-                if (Array.isArray(original)) original.unshift(newOne);
-                else retVal.props.children[0].props.children = [original, newOne];
+                if (Array.isArray(original)) original.splice(1, 0, aivButton);
+                else retVal.props.children[0].props.children = [original, aivButton];
             }));
         }
 
         setupGuildModal(guild) {
             if (guild.icon != null) { 
                 const url = "https://cdn.discordapp.com/icons/" + guild.id + "/" + guild.icon + ".webp?size=4096";
-                return this.createModal(guild.name, url, false);
+                this.showModal(this.createModal(guild.name, url, false));
             }
             else {
                 Toasts.error("Server has no icon!");
@@ -259,29 +259,30 @@ module.exports = (() => {
 
 
         patchUserContextMenu() {
-            const UserContextMenu = WebpackModules.getModule(m => m.default && m.default.displayName == "GuildChannelUserContextMenu");
-
-            this.contextMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
-                const original = retVal.props.children.props.children[0].props.children[0];
-                const newOne = DCM.buildMenuItem({label: "View Avatar", action: () => {
-                    this.showModal(this.setupUserModal(props.user));
-                }});
-                if (Array.isArray(original)) original.unshift(newOne);
-                else retVal.props.children.props.children[0].props.children[0] = [original, newOne];
-            }));
+            const ContextMenus = WebpackModules.findAll(({ default: { displayName } }) => displayName && (displayName.endsWith('UserContextMenu')));
+            for (const UserContextMenu of ContextMenus) {
+                this.contextMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
+                    const original = retVal.props.children.props.children[0].props.children[0];
+                    const aivButton = DCM.buildMenuItem({label: "View Avatar", action: () => {
+                        this.setupUserModal(props.user);
+                    }});
+                    if (Array.isArray(original)) original.splice(1, 0, aivButton);
+                    else retVal.props.children.props.children[0].props.children[0] = [original, aivButton];
+                }));
+            }
         }
 
         
         setupUserModal(user) {
-            const url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=2048";
-            return this.createModal(user.username, url, true);
+            const url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=1024";
+            this.showModal(this.createModal(user.username, url, true));
         }
       
         createModal(name, url, isUser) {
             const modal = DOMTools.createElement(Utilities.formatTString(Utilities.formatTString(this.modalHTML, isUser ? this.strings.userHeader : this.strings.guildHeader), {name: escapeHTML(name)}));
             modal.querySelector(".callout-backdrop").addEventListener("click", () => {
                 modal.classList.add("closing");
-                setTimeout(() => { modal.remove(); }, 300);
+                modal.addEventListener("animationend", () => { modal.remove(); }, 300);
             });
 
             const image = document.createElement("IMG");
@@ -294,8 +295,7 @@ module.exports = (() => {
                 clipboard.writeText(url);
                 Toasts.success("Copied link to clipboard!");
                 modal.classList += "closing";
-                setTimeout(() => { modal.remove(); }, 300);
-                
+                modal.addEventListener("animationend", () => { modal.remove(); }, 300);
             };
 
             modal.getElementsByClassName("aiv-copyImage")[0].onclick = function() { 
@@ -313,7 +313,7 @@ module.exports = (() => {
                     }
                     Toasts.success("Copied image to clipboard!");
                     modal.classList += "closing";
-                    setTimeout(() => { modal.remove(); }, 300); 
+                   modal.addEventListener("animationend", () => { modal.remove(); }, 300);
                 });
             };
 
