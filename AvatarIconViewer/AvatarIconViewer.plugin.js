@@ -13,7 +13,7 @@ module.exports = (() => {
                 name:"DavinMiler",
                 discord_id:"275215231918276608"
             }],
-        version:"1.0.2",
+        version:"1.0.3",
         description:"Allows you to view and copy a user's profile picture.",
         github:"https://github.com/DaanVink/BetterDiscordPlugins/blob/master/AvatarIconViewer/AvatarIconViewer.plugin.js",
         github_raw:"https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js"},
@@ -128,7 +128,7 @@ module.exports = (() => {
             }
 
             #aiv-modal-wrapper .modal-body {
-                background-color: #36393f;
+                background-color: var(--background-secondary);
                 height: auto;
                 width: auto;
                 flex-direction: column;
@@ -151,7 +151,7 @@ module.exports = (() => {
                 border-radius: 5px 5px 0px 0px;
             }
 
-            .aiv-header { background-color: #202225; }
+            .aiv-header { background-color: var(--background-tertiary); }
 
             .aiv-buttonwrapper {
                 display: flex;
@@ -160,7 +160,7 @@ module.exports = (() => {
                 padding-top: 10px;
                 padding-bottom: 10px;
                 width: 100%;
-                background-color: #36393f;
+                background-color: var(--background-secondary);
                 border-radius: 0px 0px 5px 5px;
             }
 
