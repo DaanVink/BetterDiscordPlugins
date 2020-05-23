@@ -138,7 +138,6 @@ module.exports = (() => {
                 padding: 25px 25px 0px 25px;
                 contain: layout;
                 position: relative;
-                border-radius: 0px 0px 5px 5px;
             }
 
             #aiv-modal-wrapper .header {
@@ -158,17 +157,19 @@ module.exports = (() => {
                 display: flex;
                 flex-direction: row;
                 justify-content: space-between;
-                padding-top: 15px;
-                padding-bottom: 15px;
+                padding-top: 10px;
+                padding-bottom: 10px;
                 width: 100%;
+                background-color: #36393f;
+                border-radius: 0px 0px 5px 5px;
             }
 
             .aiv-button {
                 min-width: 125px;
                 min-height: 38px;
                 width: 25%;
-                margin-left: 5px;
-                margin-right: 5px;
+                margin-left: 25px;
+                margin-right: 25px;
                 display: flex;
                 color: #fff;
                 background-color: #7289da;
@@ -194,13 +195,13 @@ module.exports = (() => {
                 <div id="aiv-modal" class="\${inner}">
                     <div class="header aiv-header"><div class="title">\${header}</div></div>
                     <div class="modal-body"">
-                        <div class="aiv-imgContainer"></div>
+                        <div class="aiv-imgContainer"></div></div>
                         <div class="aiv-buttonwrapper">
                             <div class="aiv-button aiv-copyLink">Copy image link</div>
                             <div class="aiv-button aiv-copyImage">Copy image</div>
                             <div class="aiv-button aiv-openBrowser">Open in browser</div>
                         </div>
-                    </div>
+                    
                 </div>
             </div>
         </div>`;
