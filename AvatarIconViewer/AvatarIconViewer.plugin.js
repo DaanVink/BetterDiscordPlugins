@@ -16,14 +16,14 @@ module.exports = (() => {
                 name:"DavinMiler",
                 discord_id:"275215231918276608"
             }],
-        version:"1.0.4",
+        version:"1.0.5",
         description:"Allows you to view and copy a user's profile picture.",
         github:"https://github.com/DaanVink/BetterDiscordPlugins/blob/master/AvatarIconViewer/AvatarIconViewer.plugin.js",
         github_raw:"https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js"},
         changelog: [{
             title: "Upgrades, people. Upgrades!",
             type: "added",
-            items: ["We have a settings panel now!", "You can enable and disable where to show the buttons"]
+            items: ["We have a settings panel now!", "You can enable and disable where to show the buttons", "You can now choose to use the nickname when viewing an avatar"]
         },
         {
             title: "Squashed bugs on the menu.",
@@ -59,8 +59,16 @@ module.exports = (() => {
                     name: "Show button in user popout menu",
                     note: "Note: Must reload discord after toggling to remove button",
                     value: true
-                }],
-        }],
+                    },
+                ],
+            },
+            {
+                type: "switch",
+                id: "useNickname",
+                name: "Use nickname when available",
+                value: false
+            }
+        ],
         strings:{
             en:{
                 userContextLabel:"View Profile Picture",
@@ -107,9 +115,13 @@ module.exports = (() => {
     const path = require("path");
     const process = require("process");
     const request = window.require("request");
-    const UserStore = DiscordModules.UserStore;
     const fs = require("fs");
     const { clipboard, nativeImage } = require("electron");
+
+    const UserStore = DiscordModules.UserStore;
+    const GuildStore = DiscordModules.GuildStore;
+    const SelectedGuildStore = DiscordModules.SelectedGuildStore;
+    const MemberStore = DiscordModules.GuildMemberStore;
 
     const escapeHTML = function (str) {
         return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') ;
@@ -271,10 +283,10 @@ module.exports = (() => {
 
             this.modalHTML = Utilities.formatTString(this.modalHTML, DiscordClasses.Backdrop);
             this.modalHTML = Utilities.formatTString(this.modalHTML, DiscordClasses.Modals);
-            this.bindGuildContextMenus();
-            this.bindUserContextMenus();
+            if (this.settings.contextMenus.contextMenuGuilds) this.bindGuildContextMenus();
+            if (this.settings.contextMenus.contextMenuUsers) this.bindUserContextMenus();
             this.promises = {state: {cancelled: false}, cancel() {this.state.cancelled = true;}};
-            if (true) this.bindPopouts(this.promises.state);
+            if (this.settings.popoutMenus.popouts) this.bindPopouts(this.promises.state);
         }
 
         onStop() {
@@ -320,9 +332,18 @@ module.exports = (() => {
             const ContextMenus = WebpackModules.findAll(({ default: { displayName } }) => displayName && (displayName.endsWith('UserContextMenu')));
             for (const UserContextMenu of ContextMenus) {
                 this.userMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
+                    var user = props.user;
                     const original = retVal.props.children.props.children[0].props.children[0];
+                    if (this.settings.useNickname) {
+                        const guildId = SelectedGuildStore.getGuildId();
+                        const guild = GuildStore.getGuild(guildId);
+                        if (guild) {
+                            const guildMember = MemberStore.getMember(guildId, props.user.id);
+                            if (guildMember.nick) user.nick = guildMember.nick;
+                        }
+                    }
                     const aivButton = DCM.buildMenuItem({label: "View Avatar", action: () => {
-                        this.setupUserModal(props.user);
+                        this.setupUserModal(user);
                     }});
                     if (Array.isArray(original)) original.splice(1, 0, aivButton);
                     else retVal.props.children.props.children[0].props.children[0] = [original, aivButton];
@@ -335,6 +356,7 @@ module.exports = (() => {
             if (url.includes("/a_")) {
                 url = url.replace(".webp", ".gif");
             }
+            if (this.settings.useNickname && user.nick) user.username = user.nick;
             this.showModal(this.createModal(user.username, url, true));
         }
       
