@@ -4,8 +4,11 @@
  * @source https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js
  */
 
+function print(args) {console.log(args)}
+
 
 module.exports = (() => {
+    
     const config = {
         info:{
             name:"AvatarIconViewer",
@@ -17,6 +20,37 @@ module.exports = (() => {
         description:"Allows you to view and copy a user's profile picture.",
         github:"https://github.com/DaanVink/BetterDiscordPlugins/blob/master/AvatarIconViewer/AvatarIconViewer.plugin.js",
         github_raw:"https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js"},
+        defaultConfig: [{
+            type: "category",
+            id: "contextMenus",
+            name: "Context Menus",
+            collapsible: true,
+            shown: true,
+            settings: [{
+                    type: "switch",
+                    id: "contextMenuUsers",
+                    name: "Show in user context menu",
+                    value: true
+                }, {
+                    type: "switch",
+                    id: "contextMenuGuilds",
+                    name: "Show in guild context menu",
+                    value: true
+                }]},
+            {
+            type: "category",
+            id: "popoutMenus",
+            name: "Popout Menu",
+            collapsible: true,
+            shown: true,
+            settings: [{
+                    type: "switch",
+                    id: "popouts",
+                    name: "Show button in user popout menu",
+                    note: "Note: Must reload discord after toggling to remove button",
+                    value: true
+                }],
+        }],
         strings:{
             en:{
                 userContextLabel:"View Profile Picture",
@@ -58,11 +92,12 @@ module.exports = (() => {
         stop() {}
     } : (([Plugin, Api]) => {
         const plugin = (Plugin, Api) => {
-    const {Patcher, WebpackModules, PluginUtilities, Toasts, DiscordClasses, DiscordSelectors, Utilities, DOMTools, DCM} = Api;
+    const {Patcher, WebpackModules, PluginUtilities, Toasts, DiscordClasses, DiscordSelectors, DiscordModules, Utilities, DOMTools, ReactComponents, ReactTools, DCM} = Api;
 
     const path = require("path");
     const process = require("process");
     const request = window.require("request");
+    const UserStore = DiscordModules.UserStore;
     const fs = require("fs");
     const { clipboard, nativeImage } = require("electron");
 
@@ -183,7 +218,14 @@ module.exports = (() => {
                 transition: background-color .17s ease,color .17s ease;
             }
 
-            .aiv-button:hover { background-color: #677bc4; }
+            .aiv-buttonPopout {
+                height: 35px;
+                width: 100%;
+                margin: 0px;
+            }
+
+            /*.aiv-button:hover { background-color: #677bc4; }*/
+            .aiv-button:hover {  background-color: #4e5d94;}
             .aiv-button:active { background-color: #4e5d94; }
             `;
 
@@ -206,39 +248,41 @@ module.exports = (() => {
             </div>
         </div>`;
         
-            this.cancelUserPopout = () => {};
-            this.contextMenuPatches = [];
+            this.popoutButtons = [];
+            this.guildMenuPatches = [];
+            this.userMenuPatches = [];
         }
+        
+        
+        initialize() {}
 
         onStart() {
             PluginUtilities.addStyle(this.getName(), this.css);
 
             this.modalHTML = Utilities.formatTString(this.modalHTML, DiscordClasses.Backdrop);
             this.modalHTML = Utilities.formatTString(this.modalHTML, DiscordClasses.Modals);
-            this.bindContextMenus();
+            this.bindGuildContextMenus();
+            this.bindUserContextMenus();
+            this.promises = {state: {cancelled: false}, cancel() {this.state.cancelled = true;}};
+            if (true) this.bindPopouts(this.promises.state);
         }
 
         onStop() {
             PluginUtilities.removeStyle(this.getName());
-            this.unbindContextMenus();
+            this.unbindGuildContextMenus();
+            this.unbindUserContextMenus();
+            this.unbindPopouts();
         }
 
-        unbindPopouts() {
-            this.cancelUserPopout();
-        }
+        unbindPopouts() { }
+        async bindGuildContextMenus() { this.patchGuildContextMenus(); }
+        async bindUserContextMenus() { this.patchUserContextMenus(); }
+        unbindGuildContextMenus() { for (const cancel of this.guildMenuPatches) cancel(); }
+        unbindUserContextMenus() { for (const cancel of this.userMenuPatches) cancel(); }
 
-        async bindContextMenus() {
-            this.patchGuildContextMenu();
-            this.patchUserContextMenu();
-        }
-
-        unbindContextMenus() {
-            for (const cancel of this.contextMenuPatches) cancel();
-        }
-
-        patchGuildContextMenu() {
+        patchGuildContextMenus() {
             const GuildContextMenu = WebpackModules.getModule(m => m.default && m.default.displayName == "GuildContextMenu");
-            this.contextMenuPatches.push(Patcher.after(GuildContextMenu, "default", (_, [props], retVal) => {
+            this.guildMenuPatches.push(Patcher.after(GuildContextMenu, "default", (_, [props], retVal) => {
                 const original = retVal.props.children[0].props.children;
                 const aivButton = DCM.buildMenuItem({label: "View Icon", action: () => {
                     this.setupGuildModal(props.guild);
@@ -262,10 +306,10 @@ module.exports = (() => {
         }
 
 
-        patchUserContextMenu() {
+        patchUserContextMenus() {
             const ContextMenus = WebpackModules.findAll(({ default: { displayName } }) => displayName && (displayName.endsWith('UserContextMenu')));
             for (const UserContextMenu of ContextMenus) {
-                this.contextMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
+                this.userMenuPatches.push(Patcher.after(UserContextMenu, "default", (_, [props], retVal) => {
                     const original = retVal.props.children.props.children[0].props.children[0];
                     const aivButton = DCM.buildMenuItem({label: "View Avatar", action: () => {
                         this.setupUserModal(props.user);
@@ -275,7 +319,6 @@ module.exports = (() => {
                 }));
             }
         }
-
         
         setupUserModal(user) {
             var url = "https://cdn.discordapp.com/avatars/" + user.id + "/" + user.avatar + ".webp?size=1024";
@@ -341,6 +384,54 @@ module.exports = (() => {
             const app = document.querySelector(".app-19_DXt");
             if (app) app.append(modal);
             else document.querySelector("#app-mount").append(modal);
+        }
+
+        async bindPopouts(promiseState) {
+            const pViewer = this;
+            const popoutMount = function() {
+                const popout = DiscordModules.ReactDOM.findDOMNode(this);
+                const user = this.props.guildMember;
+                var button = document.createElement("button");
+                button.innerText = "View avatar";
+                button.classList.add("aiv-button");
+                button.classList.add("aiv-buttonPopout");
+                button.addEventListener("click", function() { pViewer.setupUserModal(UserStore.getUser(user.userId)) } );
+                popout.appendChild(button);
+                pViewer.popoutButtons.push(button)
+            };
+            
+            const UserPopout = await ReactComponents.getComponentByName("UserPopout", DiscordSelectors.UserPopout.userPopout);
+            if (promiseState.cancelled) return;
+            this.cancelUserPopout = Patcher.after(UserPopout.component.prototype, "componentDidMount", (thisObject) => {
+                const bound = popoutMount.bind(thisObject); bound();
+            });
+            const instance = ReactTools.getOwnerInstance(document.querySelector(DiscordSelectors.UserPopout.userPopout), {include: ["UserPopout"]});
+            if (!instance) return;
+            popoutMount.bind(instance)();
+
+            const popoutInstance = ReactTools.getOwnerInstance(document.querySelector(DiscordSelectors.UserPopout.userPopout), {include: ["Popout"]});
+            if (!popoutInstance || !popoutInstance.updateOffsets) return;
+            popoutInstance.updateOffsets();
+
+        }
+
+        getSettingsPanel() {
+            const panel = this.buildSettingsPanel();
+            panel.addListener((id, checked) => {
+                if (id == "popouts") {
+                    if (checked) this.bindPopouts();
+                    else this.unbindPopouts();
+                }
+                if (id == "contextMenuGuilds") {
+                    if (checked) this.bindGuildContextMenus();
+                    else this.unbindGuildContextMenus();
+                }
+                if (id == "contextMenuUsers") {
+                    if (checked) this.bindUserContextMenus();
+                    else this.unbindUserContextMenus();
+                }
+            });
+            return panel.getElement();
         }
 
     };
