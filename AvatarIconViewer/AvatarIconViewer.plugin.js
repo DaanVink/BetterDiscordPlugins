@@ -16,10 +16,20 @@ module.exports = (() => {
                 name:"DavinMiler",
                 discord_id:"275215231918276608"
             }],
-        version:"1.0.3",
+        version:"1.0.4",
         description:"Allows you to view and copy a user's profile picture.",
         github:"https://github.com/DaanVink/BetterDiscordPlugins/blob/master/AvatarIconViewer/AvatarIconViewer.plugin.js",
         github_raw:"https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js"},
+        changelog: [{
+            title: "Upgrades, people. Upgrades!",
+            type: "added",
+            items: ["We have a settings panel now!", "You can enable and disable where to show the buttons"]
+        },
+        {
+            title: "Squashed bugs on the menu.",
+            type: "improved",
+            items: ["Buttons no longer hide away when zoomed in"]
+        }],
         defaultConfig: [{
             type: "category",
             id: "contextMenus",
