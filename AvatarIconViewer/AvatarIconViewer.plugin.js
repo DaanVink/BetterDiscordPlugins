@@ -16,7 +16,7 @@ module.exports = (() => {
                 name:"DavinMiler",
                 discord_id:"275215231918276608"
             }],
-        version:"1.0.5",
+        version:"1.0.6",
         description:"Allows you to view and copy a user's profile picture.",
         github:"https://github.com/DaanVink/BetterDiscordPlugins/blob/master/AvatarIconViewer/AvatarIconViewer.plugin.js",
         github_raw:"https://raw.githubusercontent.com/DaanVink/BetterDiscordPlugins/master/AvatarIconViewer/AvatarIconViewer.plugin.js"},
@@ -28,8 +28,8 @@ module.exports = (() => {
         {
             title: "Squashed bugs on the menu.",
             type: "improved",
-            items: ["Buttons no longer hide away when zoomed in"]
-        }],
+            items: ["Buttons no longer hide away when zoomed in", "Buttons in popout no longer multiply"]
+        },],
         defaultConfig: [{
             type: "category",
             id: "contextMenus",
@@ -57,7 +57,6 @@ module.exports = (() => {
                     type: "switch",
                     id: "popouts",
                     name: "Show button in user popout menu",
-                    note: "Note: Must reload discord after toggling to remove button",
                     value: true
                     },
                 ],
@@ -273,6 +272,9 @@ module.exports = (() => {
             this.popoutButtons = [];
             this.guildMenuPatches = [];
             this.userMenuPatches = [];
+            this.cancelUserPopout = () => {
+                
+            };
         }
         
         
@@ -296,7 +298,7 @@ module.exports = (() => {
             this.unbindPopouts();
         }
 
-        unbindPopouts() { }
+        unbindPopouts() { this.cancelUserPopout(); }
         async bindGuildContextMenus() { this.patchGuildContextMenus(); }
         async bindUserContextMenus() { this.patchUserContextMenus(); }
         unbindGuildContextMenus() { for (const cancel of this.guildMenuPatches) cancel(); }
@@ -450,17 +452,19 @@ module.exports = (() => {
         getSettingsPanel() {
             const panel = this.buildSettingsPanel();
             panel.addListener((id, checked) => {
-                if (id == "popouts") {
-                    if (checked) this.bindPopouts();
+                if (id == "popoutMenus") {
+                    if (this.settings[id][checked]) this.bindPopouts({state: {cancelled: false}, cancel() {this.state.cancelled = true;}});
                     else this.unbindPopouts();
                 }
-                if (id == "contextMenuGuilds") {
-                    if (checked) this.bindGuildContextMenus();
-                    else this.unbindGuildContextMenus();
-                }
-                if (id == "contextMenuUsers") {
-                    if (checked) this.bindUserContextMenus();
-                    else this.unbindUserContextMenus();
+                if (id == "contextMenus") {
+                    if (checked == "contextMenuGuilds") {
+                        if (this.settings[id][checked]) this.bindGuildContextMenus();
+                        else this.unbindGuildContextMenus();
+                    }
+                    if (checked == "contextMenuUsers") {
+                        if (this.settings[id][checked]) this.bindUserContextMenus();
+                        else this.unbindUserContextMenus();
+                    }
                 }
             });
             return panel.getElement();
